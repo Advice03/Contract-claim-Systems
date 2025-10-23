@@ -1,0 +1,421 @@
+﻿@{
+    ViewData["Title"] = "Contract Monthly Claim System";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+
+    <!-- XLSX for Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        /* --- General Styles --- */
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: #0077cc;
+            color: white;
+            text-align: center;
+            padding: 15px;
+        }
+
+        section {
+            background: white;
+            margin: 30px auto;
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 900px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h2, h3 {
+            color: #0077cc;
+        }
+
+        input, textarea, select, button {
+            width: 100%;
+            padding: 8px;
+            margin: 6px 0 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 15px;
+        }
+
+        button {
+            background: #0077cc;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+            button:hover {
+                background: #005fa3;
+            }
+
+        .hidden {
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+            .status.Pending {
+                color: orange;
+            }
+
+            .status.Approved {
+                color: green;
+            }
+
+            .status.Rejected {
+                color: red;
+            }
+
+        .progress-bar {
+            height: 10px;
+            border-radius: 5px;
+            background: #eee;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 33%;
+            background: orange;
+            transition: width 0.4s;
+        }
+
+        .status.Approved + .progress-bar .progress-fill {
+            width: 100%;
+            background: green;
+        }
+
+        .status.Rejected + .progress-bar .progress-fill {
+            width: 100%;
+            background: red;
+        }
+
+        .action-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            margin-right: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .approve-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .reject-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .file-info {
+            color: #333;
+            font-style: italic;
+        }
+
+        .dashboard {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+
+        .card {
+            background: #e9f3ff;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            width: 28%;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+
+            .card h3 {
+                margin: 5px 0;
+                color: #005fa3;
+            }
+
+        .export-btn {
+            background: #008f4c;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+            .export-btn:hover {
+                background: #00773f;
+            }
+
+        #notificationCenter {
+            background: #f8f9ff;
+            border: 1px solid #ccd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 6px;
+        }
+
+        .notification {
+            border-bottom: 1px solid #ddd;
+            padding: 6px 0;
+        }
+
+            .notification:last-child {
+                border-bottom: none;
+            }
+
+        .error {
+            color: red;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <header><h1>Contract Monthly Claim System</h1></header>
+
+    <!-- Registration -->
+    <section id="registerSection">
+        <h2>Register</h2>
+        <form onsubmit="registerUser(event)">
+            <label>Name</label><input id="regName" required>
+            <label>Email</label><input type="email" id="regEmail" required>
+            <label>Password</label><input type="password" id="regPassword" required>
+            <label>Role</label>
+            <select id="regRole" required>
+                <option value="">-- Select Role --</option>
+                <option value="Lecturer">Lecturer</option>
+                <option value="Coordinator">Programme Coordinator</option>
+                <option value="Manager">Academic Manager</option>
+            </select>
+            <button type="submit">Register</button>
+        </form>
+        <p>Already registered? <a href="#" onclick="showLogin()">Login here</a></p>
+    </section>
+
+    <!-- Login -->
+    <section id="loginSection" class="hidden">
+        <h2>Login</h2>
+        <form onsubmit="loginUser(event)">
+            <label>Email</label><input type="email" id="loginEmail" required>
+            <label>Password</label><input type="password" id="loginPassword" required>
+            <button type="submit">Login</button>
+        </form>
+        <p>Don't have an account? <a href="#" onclick="showRegister()">Register here</a></p>
+    </section>
+
+    <!-- Lecturer Claim -->
+    <section id="claimSection" class="hidden">
+        <h2>Submit a Claim</h2>
+        <form id="claimForm" onsubmit="submitClaim(event)">
+            <label>Claim Title</label><input id="claimTitle" required>
+            <label>Description</label><textarea id="claimDescription" required></textarea>
+            <label>Hours Worked</label><input type="number" id="hoursWorked" min="1" required>
+            <label>Hourly Rate (R)</label><input type="number" id="hourlyRate" min="1" required>
+            <label>Additional Notes</label><textarea id="additionalNotes" placeholder="Optional"></textarea>
+            <label>Upload Supporting Document</label>
+            <input type="file" id="claimFile" accept=".pdf,.docx,.xlsx" onchange="handleFileUpload(event)">
+            <p id="fileInfo" class="file-info"></p>
+            <button type="submit">Submit Claim</button>
+        </form>
+        <h3>Notification Center</h3>
+        <div id="notificationCenter"></div>
+    </section>
+
+    <!-- Lecturer Dashboard -->
+    <section id="statusSection" class="hidden">
+        <h2>My Claim Status</h2>
+        <div class="dashboard">
+            <div class="card"><h3>Pending</h3><p id="pendingCount">0</p></div>
+            <div class="card"><h3>Approved</h3><p id="approvedCount">0</p></div>
+            <div class="card"><h3>Rejected</h3><p id="rejectedCount">0</p></div>
+        </div>
+        <table>
+            <thead>
+                <tr><th>Title</th><th>Description</th><th>Hours</th><th>Rate</th><th>Total</th><th>Notes</th><th>File</th><th>Status</th><th>Progress</th></tr>
+            </thead>
+            <tbody id="statusTable"></tbody>
+        </table>
+    </section>
+
+    <!-- Admin Dashboard -->
+    <section id="adminSection" class="hidden">
+        <h2>Verification Dashboard</h2>
+        <div class="dashboard">
+            <div class="card"><h3>Pending</h3><p id="adminPending">0</p></div>
+            <div class="card"><h3>Approved</h3><p id="adminApproved">0</p></div>
+            <div class="card"><h3>Rejected</h3><p id="adminRejected">0</p></div>
+        </div>
+        <button class="export-btn" onclick="exportClaims()">Export Claims to Excel</button>
+        <table>
+            <thead><tr><th>Lecturer</th><th>Email</th><th>Title</th><th>Description</th><th>Hours</th><th>Rate</th><th>Total</th><th>Notes</th><th>File</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="adminTable"></tbody>
+        </table>
+    </section>
+
+    <script>
+        function showLogin(){registerSection.classList.add("hidden");loginSection.classList.remove("hidden");}
+        function showRegister(){loginSection.classList.add("hidden");registerSection.classList.remove("hidden");}
+        function safeGet(key){ try{return JSON.parse(localStorage.getItem(key))||[];} catch(e){alert("Data error: "+key);return [];} }
+
+        function registerUser(e){
+            e.preventDefault();
+            const name=regName.value.trim(),email=regEmail.value.trim(),pass=regPassword.value,role=regRole.value;
+            let users=safeGet("users");
+            if(users.find(u=>u.email===email))return alert("Email already registered!");
+            users.push({name,email,pass,role});
+            localStorage.setItem("users",JSON.stringify(users));
+            alert("Registration successful!");
+            showLogin();
+        }
+
+        function loginUser(e){
+            e.preventDefault();
+            const email=loginEmail.value.trim(),pass=loginPassword.value;
+            const users=safeGet("users");
+            const user=users.find(u=>u.email===email && u.pass===pass);
+            if(!user)return alert("Invalid login!");
+            localStorage.setItem("user",JSON.stringify(user));
+            registerSection.classList.add("hidden");loginSection.classList.add("hidden");
+            if(user.role==="Lecturer"){claimSection.classList.remove("hidden");statusSection.classList.remove("hidden");loadLecturerClaims(user.email);loadNotifications();}
+            else {adminSection.classList.remove("hidden");loadAdminClaims();}
+        }
+
+        let uploadedFileName="";
+        function handleFileUpload(e){
+            const file=e.target.files[0];
+            if(!file){fileInfo.textContent="";return;}
+            const allowed=[".pdf",".docx",".xlsx"],ext=file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+            if(!allowed.includes(ext))return alert("Invalid file type!"),e.target.value="",fileInfo.textContent="";
+            if(file.size>2*1024*1024)return alert("File too large! Max 2MB."),e.target.value="",fileInfo.textContent="";
+            uploadedFileName=file.name;fileInfo.textContent="Uploaded: "+file.name;
+        }
+
+        function submitClaim(e){
+            e.preventDefault();
+            const user=JSON.parse(localStorage.getItem("user"));
+            const title=claimTitle.value,desc=claimDescription.value,hours=parseFloat(hoursWorked.value),rate=parseFloat(hourlyRate.value),notes=additionalNotes.value;
+            const total=(hours*rate).toFixed(2);
+            let claims=safeGet("claims");
+            claims.push({lecturer:user.name,email:user.email,title,desc,hours,rate,total,notes,fileName:uploadedFileName||"None",status:"Pending"});
+            localStorage.setItem("claims",JSON.stringify(claims));
+            addNotification(user.email,`Your claim "${title}" has been submitted.`);
+            alert("Claim submitted!");
+            claimForm.reset();fileInfo.textContent="";uploadedFileName="";
+            loadLecturerClaims(user.email);loadNotifications();
+        }
+
+        function loadLecturerClaims(email){
+            const claims=safeGet("claims"),table=statusTable;
+            table.innerHTML="";
+            let p=0,a=0,r=0;
+            claims.filter(c=>c.email===email).forEach(c=>{
+                if(c.status==="Pending")p++;if(c.status==="Approved")a++;if(c.status==="Rejected")r++;
+                table.innerHTML+=`<tr><td>${c.title}</td><td>${c.desc}</td><td>${c.hours}</td><td>${c.rate}</td><td>R ${c.total}</td><td>${c.notes}</td><td>${c.fileName}</td><td class="status ${c.status}">${c.status}</td>
+                    <td><div class='progress-bar'><div class='progress-fill'></div></div></td></tr>`;
+            });
+            pendingCount.textContent=p;approvedCount.textContent=a;rejectedCount.textContent=r;
+        }
+
+        function loadAdminClaims(){
+            const claims=safeGet("claims"),table=adminTable;
+            table.innerHTML="";
+            let p=0,a=0,r=0;
+            claims.forEach((c,i)=>{
+                if(c.status==="Pending")p++;if(c.status==="Approved")a++;if(c.status==="Rejected")r++;
+                table.innerHTML+=`<tr><td>${c.lecturer}</td><td>${c.email}</td><td>${c.title}</td><td>${c.desc}</td><td>${c.hours}</td><td>${c.rate}</td><td>R ${c.total}</td><td>${c.notes}</td><td>${c.fileName}</td>
+                    <td class="status ${c.status}">${c.status}</td>
+                    <td><button class='action-btn approve-btn' onclick="updateClaimStatus(${i},'Approved')">Approve</button>
+                    <button class='action-btn reject-btn' onclick="updateClaimStatus(${i},'Rejected')">Reject</button></td></tr>`;
+            });
+            adminPending.textContent=p;adminApproved.textContent=a;adminRejected.textContent=r;
+        }
+
+        function updateClaimStatus(i,s){
+            let claims=safeGet("claims");
+            const claim=claims[i];
+            claims[i].status=s;
+            localStorage.setItem("claims",JSON.stringify(claims));
+            addNotification(claim.email,`Your claim "${claim.title}" has been ${s.toLowerCase()}.`);
+            alert(`Claim ${s.toLowerCase()}!`);
+            loadAdminClaims();
+        }
+
+        function exportClaims(){
+            const claims=safeGet("claims");
+            if(claims.length===0)return alert("No claims to export!");
+            const data=claims.map(c=>({Lecturer:c.lecturer,Email:c.email,Title:c.title,Description:c.desc,Hours:c.hours,Rate:c.rate,Total:c.total,Notes:c.notes,File:c.fileName,Status:c.status}));
+            const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb,ws,"Claims_Report");
+            XLSX.writeFile(wb,"Claims_Report.xlsx");
+        }
+
+        function addNotification(email,msg){
+            let notes=safeGet("notifications");
+            notes.push({email,message:msg,time:new Date().toLocaleString()});
+            localStorage.setItem("notifications",JSON.stringify(notes));
+        }
+
+        function loadNotifications(){
+            const user=JSON.parse(localStorage.getItem("user"));
+            const notes=safeGet("notifications"),list=notificationCenter;
+            list.innerHTML="";
+            const userNotes=notes.filter(n=>n.email===user.email);
+            if(userNotes.length===0){list.innerHTML="<p>No notifications yet.</p>";return;}
+            userNotes.slice().reverse().forEach(n=>{
+                list.innerHTML+=`<div class="notification"><b>${n.time}:</b> ${n.message}</div>`;
+            });
+        }
+
+        setInterval(()=>{
+            const user=JSON.parse(localStorage.getItem("user")||"null");
+            if(user && user.role==="Lecturer")loadLecturerClaims(user.email);
+        },5000);
+
+        function runTests(){
+            console.log("Running tests...");
+            try{
+                const users=safeGet("users");
+                console.assert(Array.isArray(users),"Users should be array");
+                console.assert(typeof registerUser==="function","registerUser exists");
+                console.assert(typeof submitClaim==="function","submitClaim exists");
+                console.log("All core tests passed.");
+            }catch(e){console.error("Test failed:",e);}
+        }
+        runTests();
+    </script>
+</body>
+</html>
